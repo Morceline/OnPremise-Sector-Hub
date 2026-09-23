@@ -27,5 +27,5 @@ O sistema utiliza um ecossistema RAG (*Retrieval-Augmented Generation*) rodando 
 ### Instalação (Ambiente de Desenvolvimento)
 1. Clone o repositório:
 ```bash
-git clone [https://github.com/Morceline/OnPremise-Sector-Hub.git](https://github.com/Morceline/OnPremise-Sector-Hub.git)
+git clone https://github.com/Morceline/OnPremise-Sector-Hub.git
 cd OnPremise-Sector-Hub
