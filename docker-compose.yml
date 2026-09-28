@@ -1,3 +1,9 @@
+# O Ollama NÃO está listado aqui de propósito: conforme validado,
+# rodá-lo nativo no Windows (fora do Docker) consome bem menos RAM do que
+# dentro de um container. O backend fala com ele via OLLAMA_HOST, apontando
+# para host.docker.internal (Windows/Mac) — em Linux, ajuste para o IP da
+# rede docker0 ou rode o backend também fora do Docker.
+
 services:
   qdrant:
     image: qdrant/qdrant:latest
@@ -8,6 +14,9 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
     restart: unless-stopped
+    # Limite de memória: coleções departamentais são pequenas, não há
+    # motivo para deixar o Qdrant reivindicar RAM sem limite em um PC básico.
+    mem_limit: 512m
 
   backend:
     build:
@@ -18,15 +27,23 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-    command: fastapi run app/main.py --host 0.0.0.0 --port 8000
+      # Persistência da configuração ativa e do log de feedback fora da
+      # imagem, para sobreviver a rebuilds do container.
+      - backend_data:/app/app/data
+    env_file:
+      - ./backend/.env
     environment:
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
-      - OLLAMA_HOST=http://host.docker.internal:11434 
       - PYTHONPATH=/app
+    # Sem healthcheck no Qdrant (a imagem oficial nao garante ter curl).
+    # Se o backend subir antes do Qdrant estar pronto, ele falha no boot e o
+    # "restart: unless-stopped" o reinicia ate o Qdrant responder.
     depends_on:
       - qdrant
     restart: unless-stopped
+    mem_limit: 1g
 
 volumes:
   qdrant_data:
+  backend_data:

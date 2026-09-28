@@ -28,7 +28,6 @@ class RAGEngine:
         collections = self.client.get_collections().collections
         exists = any(c.name == self.collection_name for c in collections)
         if not exists:
-            # 768 / 1024 / 4096 dependendo do modelo de embedding (nomic-embed-text = 768)
             self.client.create_collection(
                 collection_name=self.collection_name,
                 vectors_config=VectorParams(size=768, distance=Distance.COSINE)
@@ -66,3 +65,17 @@ class RAGEngine:
                 collection_name=self.collection_name,
                 points=points
             )
+
+    async def search(self, query_text: str, limit: int = 3):
+        """Busca documentos relevantes no banco vetorial Qdrant."""
+        query_vector = await self._get_embedding(query_text)
+        if not query_vector:
+            return []
+        
+        # O método query_points evita o erro de falta de atributo
+        response = self.client.query_points(
+            collection_name=self.collection_name,
+            query=query_vector,
+            limit=limit
+        )
+        return response.points

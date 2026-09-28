@@ -5,12 +5,29 @@ __pycache__/
 .venv/
 venv/
 ENV/
-.env
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Docker & Dados locais
+# Variáveis de ambiente 
+.env
+backend/.env
+
+# Docker & dados locais
 qdrant_data/
 ollama_data/
 *.log
+
+# Dados de runtime (configuração ativa, log de feedback) — específicos de
+# cada instalação, não fazem parte do código-fonte.
+backend/app/data/*.json
+backend/app/data/*.jsonl
+!backend/app/data/.gitkeep
+
+# Node / frontend (Tauri + React)
+node_modules/
+dist/
+src-tauri/target/
 
 # OS
 .DS_Store

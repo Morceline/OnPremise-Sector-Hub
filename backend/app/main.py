@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import config, chat
+from app.api import config, chat, document
 
 app = FastAPI(
     title="Assistente de Setor - Core API",
@@ -18,6 +18,7 @@ app.add_middleware(
 )
 
 # Inclusão dos Roteadores
+app.include_router(document.router, prefix="/api/v1/document", tags=["Base de Conhecimento"])
 app.include_router(config.router, prefix="/api/v1/config", tags=["Configuração do Gestor"])
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Atendimento Ao Colaborador"])
 

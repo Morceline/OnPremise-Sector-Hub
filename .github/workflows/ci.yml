@@ -1,0 +1,44 @@
+# Roda a suíte de testes a cada push e a cada Pull Request.
+# Os testes NÃO precisam de Qdrant nem Ollama (tudo é mockado), então o
+# runner padrão do GitHub executa sem serviços extras.
+name: CI
+
+on:
+  push:
+    branches: ["main", "develop", "etapa/**"]
+  pull_request:
+    branches: ["main", "develop"]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Instalar dependências
+        run: pip install -r requirements-dev.txt
+
+      - name: Rodar testes com cobertura
+        run: pytest --cov=app --cov-report=term-missing
+
+  docker-build:
+    # Garante que o Dockerfile continua construindo (evita quebrar o deploy
+    # sem perceber). Só roda se os testes passarem.
+    runs-on: ubuntu-latest
+    needs: test-backend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build da imagem do backend
+        run: docker build -t assistente-setor-backend ./backend
