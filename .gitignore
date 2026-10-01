@@ -9,17 +9,20 @@ ENV/
 .coverage
 htmlcov/
 
-# Variáveis de ambiente 
+# Variáveis de ambiente
 .env
 backend/.env
+frontend/.env
+
+# Documentação interna de desenvolvimento
+docs/
 
 # Docker & dados locais
 qdrant_data/
 ollama_data/
 *.log
 
-# Dados de runtime (configuração ativa, log de feedback) — específicos de
-# cada instalação, não fazem parte do código-fonte.
+# Dados de runtime
 backend/app/data/*.json
 backend/app/data/*.jsonl
 !backend/app/data/.gitkeep
