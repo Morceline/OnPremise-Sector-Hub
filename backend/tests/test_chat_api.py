@@ -7,11 +7,11 @@ são substituídos via `app.dependency_overrides` — nenhum destes testes
 depende de um Qdrant ou Ollama reais rodando na máquina.
 """
 
+from typing import Optional
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
-
 
 class FakeHit:
     def __init__(self, text: str, source: str):
@@ -29,7 +29,7 @@ class FakeRAGEngine:
         return 0
 
 
-def _fake_http_client(json_response: dict, status_code: int = 200, raise_exc: Exception = None):
+def _fake_http_client(json_response: dict, status_code: int = 200, raise_exc: Optional[Exception] = None):
     client = MagicMock()
     if raise_exc:
         client.post = AsyncMock(side_effect=raise_exc)
