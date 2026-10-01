@@ -1,4 +1,4 @@
-# Assistente de Setor
+# OnPremise-Sector-Hub
 
 Assistente corporativo baseado em IA, **100% on-premise (zero-cloud)**, personalizável por setor (jurídico, saúde, RH, militar, alimentício, etc.). Combina um Small Language Model local (Ollama + Qwen 2.5 3B) com um pipeline **RAG** (Qdrant) para responder dúvidas de colaboradores com base nos manuais e diretrizes internas da empresa, reduzindo interrupções (*context switching*) e mantendo os dados dentro da rede local (adequação à LGPD).
 
