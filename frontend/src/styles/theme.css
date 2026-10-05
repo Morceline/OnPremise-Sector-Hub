@@ -1,0 +1,19 @@
+/*
+  theme.css — Índice do sistema de design
+  ==========================================
+  Este arquivo só importa, NESTA ORDEM
+  (importa porque tokens.css define as variáveis que os outros usam), os
+  três arquivos que compõem o sistema de design:
+
+  1. tokens.css      — cores, tipografia, espaçamento, reset global
+  2. shell.css        — painel, cabeçalho, botões de ícone, bolha minimizada
+  3. components.css   — mensagens, chat, formulário do gestor, feedback
+
+  Por que manter este arquivo em vez de apontar main.jsx direto para os
+  três: assim NENHUM outro arquivo do projeto precisa saber que o CSS foi
+  dividido — Se um dia dividir de novo só mexe aqui.
+*/
+
+@import "./tokens.css";
+@import "./shell.css";
+@import "./components.css";

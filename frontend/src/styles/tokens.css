@@ -1,0 +1,143 @@
+/*
+  tokens.css — Tokens de design + reset global
+  ================================================
+  Parte 1 de 3 do sistema de design (ver shell.css e components.css).
+  Este arquivo é importado PRIMEIRO por theme.css porque os outros dois
+  dependem das variáveis definidas aqui (var(--color-accent) etc.).
+
+  PLANO DE DESIGN (resumo — ver docs para a versão completa):
+  Este é um widget corporativo que fica sobreposto ao trabalho do
+  colaborador. Ele precisa ser discreto por padrão e nunca competir por
+  atenção — o oposto de uma landing page. Por isso:
+
+  - Cor: paleta neutra e fria (evita o clichê "fundo creme + terracota" de
+    interfaces geradas por IA). Um único acento por tema, usado só em
+    pontos funcionais (botão de enviar, indicador de status, chip ativo,
+    balão do usuário) — nunca como decoração.
+  - Tipografia: pilha de fontes do SISTEMA operacional, não uma fonte via
+    Google Fonts. Decisão deliberada: o produto é "zero-cloud" por
+    especificação — carregar fonte de um CDN quebraria essa promessa no
+    primeiro uso sem internet. Aqui, a restrição funcional vence a busca
+    por uma tipografia "diferenciada".
+  - Forma: cantos discretos (6–10px), nunca o "kit de cards SaaS" com
+    border-radius idêntico em tudo e sombra cinza suave embaixo de cada
+    elemento. Só o painel flutuante em si tem sombra (ver shell.css).
+  - Movimento: apenas em resposta a uma ação do usuário (abrir, minimizar,
+    nova mensagem) — sem loops decorativos. Isso também economiza CPU/GPU
+    em um PC básico, então é uma decisão de performance, não só estética.
+
+  Três paletas de acento (RF: paleta customizável, mas restrita a temas
+  prontos para manter consistência visual — ver feedback de UX na etapa 4):
+  - "ardosia" (padrão/neutro): azul-ardósia discreto.
+  - "marinho" (jurídico, militar, RH): azul-marinho mais formal.
+  - "oliva" (saúde, alimentício): verde-oliva acolhedor.
+*/
+
+:root {
+  /* Tipografia: pilha 100% local, sem dependência de rede. */
+  --font-sans:
+    -apple-system, "Segoe UI", "Segoe UI Variable", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "Segoe UI Mono", Consolas, monospace;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+
+  --radius-panel: 12px;
+  --radius-bubble: 10px;
+  --radius-control: 8px;
+  --radius-pill: 999px;
+
+  --shadow-panel: 0 8px 28px rgba(20, 24, 28, 0.18), 0 1px 3px rgba(20, 24, 28, 0.12);
+
+  --transition-fast: 120ms ease;
+  --transition-base: 180ms cubic-bezier(0.2, 0.7, 0.3, 1);
+
+  /* --- Paleta base: tema claro, acento "ardósia" (padrão) --- */
+  --color-bg: #eef0f2;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f5f6f7;
+  --color-border: #d9dde1;
+  --color-text: #1f2933;
+  --color-text-muted: #5a6472;
+  --color-text-on-accent: #ffffff;
+
+  --color-accent: #3d5a73;
+  --color-accent-hover: #33495e;
+  --color-accent-soft: #e4ebf0;
+
+  --color-success: #4d7c5f;
+  --color-danger: #a4402f;
+
+  --color-user-bubble: var(--color-accent);
+  --color-ai-bubble: var(--color-surface-sunken);
+}
+
+/* Tema escuro — respeita a preferência do sistema, mas pode ser forçado
+   via [data-theme="dark"] a partir das preferências do colaborador. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #16191c;
+    --color-surface: #1f2328;
+    --color-surface-sunken: #262b31;
+    --color-border: #343a41;
+    --color-text: #e7e9ec;
+    --color-text-muted: #9aa3ad;
+    --color-accent-soft: #24333c;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #16191c;
+  --color-surface: #1f2328;
+  --color-surface-sunken: #262b31;
+  --color-border: #343a41;
+  --color-text: #e7e9ec;
+  --color-text-muted: #9aa3ad;
+  --color-accent-soft: #24333c;
+}
+
+/* Paletas de acento por setor — só o acento muda, o resto do sistema
+   permanece idêntico (consistência visual entre setores). */
+:root[data-sector-palette="marinho"] {
+  --color-accent: #2c4a66;
+  --color-accent-hover: #223b53;
+  --color-accent-soft: #e1e8ee;
+}
+
+:root[data-sector-palette="oliva"] {
+  --color-accent: #56705a;
+  --color-accent-hover: #475d4a;
+  --color-accent-soft: #e6ebe3;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  color: var(--color-text);
+  background: transparent; /* a janela do Tauri é transparente; quem pinta é o painel */
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Respeita usuários que pediram menos movimento no sistema operacional. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

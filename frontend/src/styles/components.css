@@ -1,0 +1,353 @@
+/*
+  components.css — Telas e componentes de conteúdo
+  =====================================================
+  Parte 3 de 3 do sistema de design (ver tokens.css e shell.css).
+  Tudo que troca de acordo com a tela atual do widget: lista de
+  mensagens, chips de categoria, campo de chat, formulário do gestor e
+  painel de feedback. A moldura ao redor (painel, cabeçalho, bolha
+  minimizada) está em shell.css.
+
+  Nota para quem for adicionar um novo controle focável (input, botão,
+  chip): o anel de foco (:focus-visible) de TODOS os controles fica
+  centralizado em shell.css, não aqui — é assim para evitar repetir a
+  mesma regra de outline em vários lugares. Lembre de adicionar o novo
+  seletor na lista `.icon-button:focus-visible, ...` de lá.
+*/
+
+/* ---------------------------------------------------------------- */
+/* Mensagens                                                          */
+/* ---------------------------------------------------------------- */
+
+.message-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.message-row {
+  display: flex;
+  max-width: 88%;
+}
+
+.message-row--user {
+  align-self: flex-end;
+  justify-content: flex-end;
+}
+
+.message-row--ai {
+  align-self: flex-start;
+}
+
+.message-bubble {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-base);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.message-bubble--ai {
+  background: var(--color-ai-bubble);
+  color: var(--color-text);
+  border-radius: var(--radius-bubble) var(--radius-bubble) var(--radius-bubble) 2px;
+}
+
+.message-bubble--user {
+  background: var(--color-user-bubble);
+  color: var(--color-text-on-accent);
+  border-radius: var(--radius-bubble) var(--radius-bubble) 2px var(--radius-bubble);
+}
+
+.message-sources {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.message-bubble--pending {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* ---------------------------------------------------------------- */
+/* Chips de categoria (início da conversa)                            */
+/* ---------------------------------------------------------------- */
+
+.quick-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.chip {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.chip:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+/* ---------------------------------------------------------------- */
+/* Campo de entrada                                                   */
+/* ---------------------------------------------------------------- */
+
+.chat-input {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+
+.chat-input__field {
+  flex: 1;
+  resize: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-base);
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  max-height: 96px;
+}
+
+.chat-input__field:focus {
+  border-color: var(--color-accent);
+}
+
+.send-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-control);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.send-button:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.send-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------- */
+/* "Não entendi, explique mais simples"                               */
+/* ---------------------------------------------------------------- */
+
+.simplify-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0 var(--space-4) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-accent-soft);
+  border-radius: var(--radius-control);
+  font-size: var(--text-sm);
+}
+
+.simplify-banner button {
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- */
+/* Painel do gestor (admin) + menu + preferências                     */
+/* ---------------------------------------------------------------- */
+
+.admin-gate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4);
+  flex: 1;
+  justify-content: center;
+}
+
+.admin-gate__title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.admin-gate__subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.admin-key-input {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-base);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.admin-form__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.admin-form__group label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.admin-form__hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.admin-form input[type="text"],
+.admin-form textarea,
+.admin-form select {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-base);
+  font-family: inherit;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.admin-form textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.primary-button {
+  border: none;
+  border-radius: var(--radius-control);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.primary-button:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondary-button {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+
+.form-status {
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+}
+
+.form-status--success {
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+}
+
+.form-status--error {
+  background: #f6e3df;
+  color: var(--color-danger);
+}
+
+/* ---------------------------------------------------------------- */
+/* Feedback (fim da conversa)                                         */
+/* ---------------------------------------------------------------- */
+
+.feedback-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4);
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.star-row {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.star-button {
+  border: none;
+  background: transparent;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-border);
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.star-button--filled {
+  color: var(--color-accent);
+}
+
+.star-button:hover {
+  transform: scale(1.1);
+}
+
+.feedback-panel textarea {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3);
+  font-family: inherit;
+  font-size: var(--text-base);
+  min-height: 64px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
