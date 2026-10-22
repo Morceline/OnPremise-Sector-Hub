@@ -18,11 +18,30 @@ const SECTOR_TO_PALETTE = {
   outro: "ardosia",
 };
 
+const THEME_STORAGE_KEY = "assistente-setor:theme";
+
+function readStoredTheme() {
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY) || "system";
+  } catch {
+    return "system";
+  }
+}
+
 export function AppProvider({ children }) {
-  const [view, setView] = useState("chat"); // chat | it-support | admin-gate | admin-form | feedback
+  const [view, setView] = useState("chat"); // chat | it-support | menu | preferences | admin-gate | admin-form | feedback
   const [sectorConfig, setSectorConfig] = useState(null);
   const [health, setHealth] = useState({ status: "unknown" });
-  const [theme, setTheme] = useState("system"); // system | light | dark
+  const [theme, setThemeState] = useState(readStoredTheme);
+
+  const setTheme = useCallback((value) => {
+    setThemeState(value);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, value);
+    } catch {
+      // Preferência não persistida não deve quebrar a troca de tema na sessão atual.
+    }
+  }, []);
 
   const refreshConfig = useCallback(async () => {
     try {

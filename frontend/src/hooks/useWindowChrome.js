@@ -85,5 +85,13 @@ export function useWindowChrome() {
     await resizeTo(EXPANDED_SIZE);
   }, [resizeTo]);
 
-  return { isMinimized, minimize, expand };
+  const quit = useCallback(async () => {
+    if (!isTauriEnv() || !tauriWindowRef.current) return;
+    // `close()` dispara o evento de fechamento da janela; como não há botão
+    // nativo de fechar nesta janela sem borda, este é o único caminho para
+    // encerrar o processo do widget de fato.
+    await tauriWindowRef.current.close();
+  }, []);
+
+  return { isMinimized, minimize, expand, quit };
 }

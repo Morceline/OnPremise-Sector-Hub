@@ -9,7 +9,7 @@ import { useAppState } from "../state/AppContext";
  * Windows). Os botões dentro do header precisam ficar FORA da área de
  * arraste, senão o clique nunca chega a eles.
  */
-export function Header({ onMinimize, onOpenAdmin }) {
+export function Header({ onMinimize, onOpenMenu }) {
   const { sectorConfig, health } = useAppState();
 
   const title = sectorConfig?.configured ? sectorConfig.sector_name : "Assistente de Setor";
@@ -23,7 +23,7 @@ export function Header({ onMinimize, onOpenAdmin }) {
       />
       <span className="widget-header__title">{title}</span>
       <div className="widget-header__actions">
-        <button className="icon-button" onClick={onOpenAdmin} aria-label="Configurações">
+        <button className="icon-button" onClick={onOpenMenu} aria-label="Menu">
           ⚙
         </button>
         <button className="icon-button" onClick={onMinimize} aria-label="Minimizar">
