@@ -1,4 +1,4 @@
-# O Ollama NÃO está listado aqui de propósito: conforme validado,
+# O Ollama NÃO está listado aqui de propósito: conforme validado por vocês,
 # rodá-lo nativo no Windows (fora do Docker) consome bem menos RAM do que
 # dentro de um container. O backend fala com ele via OLLAMA_HOST, apontando
 # para host.docker.internal (Windows/Mac) — em Linux, ajuste para o IP da
@@ -18,18 +18,46 @@ services:
     # motivo para deixar o Qdrant reivindicar RAM sem limite em um PC básico.
     mem_limit: 512m
 
+  # Prepara o volume de dados. Volumes nomeados do Docker podem nascer (ou ficar,
+  # se foram criados por uma versão antiga) com dono "root", e o backend roda
+  # como usuário comum (uid 1000) por segurança — sem este passo ele não consegue
+  # criar o catálogo e fica reiniciando ("unable to open database file").
+  # Roda uma vez, ajusta o dono e termina; o backend só sobe depois dele.
+  # É idempotente: pode rodar quantas vezes precisar.
+  data-init:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: assistente-setor-backend
+    user: "0:0"
+    command: ["sh", "-c", "chown -R 1000:1000 /app/app/data && chmod -R u+rwX /app/app/data"]
+    volumes:
+      - backend_data:/app/app/data
+    restart: "no"
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: assistente-setor-backend
     container_name: fastapi_backend
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      # Persistência da configuração ativa e do log de feedback fora da
-      # imagem, para sobreviver a rebuilds do container.
+      # Persistência da configuração ativa, do catálogo de sincronização e do
+      # log de feedback fora da imagem, para sobreviver a rebuilds.
       - backend_data:/app/app/data
+      # Documentos que o assistente pode LER. Montados como SOMENTE LEITURA:
+      # mesmo um bug ou uma credencial errada não consegue alterar nem apagar
+      # nada. Dentro do container essa pasta aparece como /dados — é esse
+      # caminho (ex.: /dados/Manuais) que o gestor informa no painel.
+      # Escolha a pasta no Windows com DOCS_ROOT no arquivo .env da RAIZ do
+      # repositório (ao lado deste docker-compose.yml); o padrão é ./documentos.
+      - type: bind
+        source: ${DOCS_ROOT:-./documentos}
+        target: /dados
+        read_only: true
     env_file:
       - ./backend/.env
     environment:
@@ -40,7 +68,10 @@ services:
     # Se o backend subir antes do Qdrant estar pronto, ele falha no boot e o
     # "restart: unless-stopped" o reinicia ate o Qdrant responder.
     depends_on:
-      - qdrant
+      qdrant:
+        condition: service_started
+      data-init:
+        condition: service_completed_successfully
     restart: unless-stopped
     mem_limit: 1g
 

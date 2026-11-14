@@ -85,13 +85,16 @@ export function useWindowChrome() {
     await resizeTo(EXPANDED_SIZE);
   }, [resizeTo]);
 
-  const quit = useCallback(async () => {
-    if (!isTauriEnv() || !tauriWindowRef.current) return;
-    // `close()` dispara o evento de fechamento da janela; como não há botão
-    // nativo de fechar nesta janela sem borda, este é o único caminho para
-    // encerrar o processo do widget de fato.
-    await tauriWindowRef.current.close();
-  }, []);
+  // Esconde a janela na bandeja do Windows. O widget continua rodando e volta
+  // ao clicar no ícone. Antes de esconder, volta para a bolha, para que ao reabrir
+  // apareça no tamanho pequeno. Devolve `false` fora do Tauri (navegador).
+  const hideToTray = useCallback(async () => {
+    if (!isTauriEnv() || !tauriWindowRef.current) return false;
+    await resizeTo(MINIMIZED_SIZE);
+    setIsMinimized(true);
+    await tauriWindowRef.current.hide();
+    return true;
+  }, [resizeTo]);
 
-  return { isMinimized, minimize, expand, quit };
+  return { isMinimized, minimize, expand, hideToTray };
 }

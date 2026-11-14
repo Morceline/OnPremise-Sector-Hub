@@ -37,11 +37,12 @@ import { ConfigForm } from "./admin/ConfigForm";
  */
 export function ChatWidget() {
   const { view, setView, refreshConfig, health } = useAppState();
-  const { isMinimized, minimize, expand, quit } = useWindowChrome();
+  const { isMinimized, minimize, expand, hideToTray } = useWindowChrome();
   const chat = useChat();
   const [managerKey, setManagerKey] = useState(null);
   const [hasUnread, setHasUnread] = useState(false);
   const pendingActionRef = useRef(null); // 'end' | 'quit' | null
+  const [menuNotice, setMenuNotice] = useState(null);
 
   const needsServerSetup = health.status === "offline";
 
@@ -85,26 +86,40 @@ export function ChatWidget() {
     }
   };
 
+  // "Sair" apaga a conversa desta sessão e esconde o widget na bandeja. Fora do
+  // Windows (navegador) não há bandeja: avisa e NÃO apaga nada.
+  const quitOrWarn = async () => {
+    const hidden = await hideToTray();
+    if (!hidden) {
+      setMenuNotice("Sair só funciona no aplicativo desktop (Tauri). No navegador, feche a aba.");
+      setView("menu");
+      return;
+    }
+    chat.resetConversation();
+    setMenuNotice(null);
+    setView("chat");
+  };
+
   const requestQuit = () => {
+    setMenuNotice(null);
     if (chat.messages.length > 0) {
       pendingActionRef.current = "quit";
       setView("feedback");
     } else {
-      quit();
+      quitOrWarn();
     }
   };
 
   const handleFeedbackDone = () => {
     const action = pendingActionRef.current;
     pendingActionRef.current = null;
-    chat.resetConversation();
-
     if (action === "quit") {
-      quit();
-    } else {
-      setView("chat");
-      minimize();
+      quitOrWarn();
+      return;
     }
+    chat.resetConversation();
+    setView("chat");
+    minimize();
   };
 
   const renderBody = () => {
@@ -119,6 +134,7 @@ export function ChatWidget() {
           onOpenAdminGate={() => setView("admin-gate")}
           onRequestQuit={requestQuit}
           onBack={() => setView("chat")}
+          notice={menuNotice}
         />
       );
     }

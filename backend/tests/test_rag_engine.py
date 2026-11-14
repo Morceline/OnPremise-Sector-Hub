@@ -120,3 +120,33 @@ async def test_search_delega_para_query_points_do_qdrant(rag_engine: RAGEngine, 
     assert len(resultados) == 1
     assert resultados[0].payload["source"] == "manual.pdf"
     fake_qdrant_client.query_points.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_index_document_desiste_cedo_quando_os_embeddings_falham(rag_engine: RAGEngine, monkeypatch):
+    chamadas = {"n": 0}
+
+    async def sempre_falha(_text):
+        chamadas["n"] += 1
+        return []
+
+    monkeypatch.setattr(rag_engine, "_get_embedding", sempre_falha)
+
+    resultado = await rag_engine.index_document("grande.txt", "palavra " * 1200)  # vários trechos
+
+    assert resultado.total_chunks > 3
+    assert chamadas["n"] == 3, "deve parar após 3 falhas seguidas, sem esperar trecho a trecho"
+    assert resultado.chunk_ids == [] and resultado.failed_chunks == resultado.total_chunks
+
+
+@pytest.mark.asyncio
+async def test_index_document_devolve_ids_unicos_dos_trechos_gravados(rag_engine: RAGEngine, fake_qdrant_client, monkeypatch):
+    async def ok(_text):
+        return [0.1, 0.2, 0.3, 0.4]
+
+    monkeypatch.setattr(rag_engine, "_get_embedding", ok)
+
+    resultado = await rag_engine.index_document("a.txt", "Um texto curto.")
+
+    assert len(resultado.chunk_ids) == 1 and resultado.failed_chunks == 0
+    fake_qdrant_client.upsert.assert_called_once()

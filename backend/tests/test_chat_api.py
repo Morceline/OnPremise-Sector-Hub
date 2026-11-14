@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
+
 class FakeHit:
     def __init__(self, text: str, source: str):
         self.payload = {"text": text, "source": source}
@@ -127,3 +128,26 @@ def test_chat_query_mensagem_vazia_e_rejeitada_pela_validacao(app_with_fake_qdra
         resp = client.post("/api/v1/chat/query", json={"message": ""})
 
     assert resp.status_code == 422
+
+
+def test_prompt_leva_as_regras_do_gestor_e_manda_responder_direto(app_with_fake_qdrant, tmp_active_config_path):
+    from app.core.dependencies import get_http_client, get_rag_engine
+    from app.models.config import SectorConfig
+    from app.services.persistence import save_active_config
+
+    save_active_config(
+        SectorConfig(sector_name="RH", niche_persona="formal", tacit_knowledge="Reembolso: 5 dias úteis."),
+        tmp_active_config_path,
+    )
+    http = _fake_http_client({"response": "ok"})
+    app = app_with_fake_qdrant
+    app.dependency_overrides[get_rag_engine] = lambda: FakeRAGEngine(hits=[])
+    app.dependency_overrides[get_http_client] = lambda: http
+
+    with TestClient(app) as client:
+        client.post("/api/v1/chat/query", json={"message": "Qual o prazo de reembolso?"})
+    app.dependency_overrides.clear()
+
+    prompt = http.post.call_args.kwargs["json"]["prompt"]
+    assert "Reembolso: 5 dias úteis." in prompt
+    assert "responda diretamente" in prompt.lower()

@@ -1,7 +1,7 @@
 """
 main.py
 --------
-Ponto de entrada da API. Mudanças:
+Ponto de entrada da API. Mudanças em relação à versão anterior:
 
 1. CORS deixou de ser `allow_origins=["*"]` (aberto para qualquer origem)
    e passou a restringir explicitamente às origens do widget Tauri/Vite em
@@ -22,16 +22,21 @@ Ponto de entrada da API. Mudanças:
    do ar (útil já que o Ollama roda nativo no Windows, fora do Docker).
 """
 
+import asyncio
 import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import chat, config, document, feedback, it_support
+from app.api import chat, config, document, feedback, it_support, sync
+from app.core.activity import ActivityGate
 from app.core.config import get_settings
+from app.services.catalog import Catalog
+from app.services.persistence import load_active_config
 from app.services.rag_engine import RAGEngine
+from app.services.sync_service import SyncService
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -42,13 +47,32 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
 
     http_client = httpx.AsyncClient()
+    rag_engine = RAGEngine(settings=settings, http_client=http_client)
+    gate = ActivityGate()
+    catalog = Catalog(settings.catalog_db_path)
+    sync_service = SyncService(rag_engine, catalog, http_client, settings, gate)
+
     app.state.http_client = http_client
-    app.state.rag_engine = RAGEngine(settings=settings, http_client=http_client)
+    app.state.rag_engine = rag_engine
+    app.state.activity_gate = gate
+    app.state.catalog = catalog
+    app.state.sync_service = sync_service
+
+    # Sincronização periódica em segundo plano (desligável por SYNC_ENABLED=false).
+    sync_task = None
+    if settings.sync_enabled:
+        sync_task = asyncio.create_task(
+            sync_service.run_periodic(lambda: load_active_config(settings.active_config_path))
+        )
 
     logger.info("Aplicação iniciada. Qdrant=%s:%s Ollama=%s", settings.qdrant_host, settings.qdrant_port, settings.ollama_host)
 
     yield
 
+    if sync_task is not None:
+        sync_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await sync_task
     await http_client.aclose()
     logger.info("Aplicação encerrada, conexões liberadas.")
 
@@ -60,18 +84,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Origens explicitamente permitidas: dev do Vite (widget React) e o
-# esquema customizado do Tauri em produção. Ajuste conforme a config
-# de porta em .env / tauri.conf.json.
-ALLOWED_ORIGINS = [
-    "tauri://localhost",
-    "http://localhost:1420",
-    "http://localhost:5173",
-]
-
+# Origens explicitamente permitidas (sem wildcard). A lista vem das Settings
+# (core/config.py) para poder ser ajustada por instalação via .env, sem
+# editar código. Atenção: no Windows o Tauri v2 usa http://tauri.localhost.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=get_settings().cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type", "X-Manager-Key"],
@@ -82,6 +100,7 @@ app.include_router(config.router, prefix="/api/v1/config", tags=["Configuração
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Atendimento ao Colaborador"])
 app.include_router(feedback.router, prefix="/api/v1/feedback", tags=["Feedback"])
 app.include_router(it_support.router, prefix="/api/v1/it-support", tags=["Suporte de TI Universal"])
+app.include_router(sync.router, prefix="/api/v1/sync", tags=["Sincronização"])
 
 
 @app.get("/health", tags=["Infraestrutura"])

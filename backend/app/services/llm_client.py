@@ -3,7 +3,10 @@ services/llm_client.py
 -------------------------
 Wrapper único para chamadas de geração de texto ao Ollama.
 
-(o conhecimento de TI é universal, não depende
+Antes, a chamada `POST /api/generate` estava duplicada dentro de
+`api/chat.py`. Extraímos para cá porque o novo endpoint de suporte de TI
+(api/it_support.py) também precisa gerar texto com o LLM, mas SEM passar
+pelo pipeline de busca RAG (o conhecimento de TI é universal, não depende
 dos documentos do setor).
 """
 
@@ -24,11 +27,15 @@ async def generate_completion(
     prompt: str,
     http_client: httpx.AsyncClient,
     settings: Settings,
+    options: dict | None = None,
 ) -> str:
+    body = {"model": settings.llm_model, "prompt": prompt, "stream": False}
+    if options:
+        body["options"] = options  # ex.: num_predict (tamanho máximo) e temperature
     try:
         response = await http_client.post(
             f"{settings.ollama_host}/api/generate",
-            json={"model": settings.llm_model, "prompt": prompt, "stream": False},
+            json=body,
             timeout=settings.request_timeout_seconds,
         )
         response.raise_for_status()
