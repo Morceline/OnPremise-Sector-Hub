@@ -8,6 +8,8 @@ vencer em caso de conflito com a allowlist.
 
 from pathlib import Path
 
+import pytest
+
 from app.services.document import SafeDocumentReader
 
 
@@ -90,3 +92,36 @@ def test_pasta_permitida_inexistente_nao_quebra_a_leitura(tmp_path: Path):
 
     # Não deve lançar exceção, apenas retornar lista vazia.
     assert reader.load_and_extract() == []
+
+
+def test_iter_safe_files_lista_so_o_permitido_e_suportado(tmp_path: Path):
+    pasta = tmp_path / "docs"
+    (pasta / "privado").mkdir(parents=True)
+    (pasta / "a.txt").write_text("a")
+    (pasta / "b.png").write_bytes(b"x")                 # tipo não suportado
+    (pasta / "~$c.docx").write_bytes(b"x")              # temporário do Office
+    (pasta / "privado" / "d.txt").write_text("d")       # bloqueado
+
+    reader = SafeDocumentReader([str(pasta)], [str(pasta / "privado")])
+
+    assert [p.name for p in reader.iter_safe_files()] == ["a.txt"]
+
+
+def test_pastas_permitidas_sobrepostas_nao_repetem_arquivo(tmp_path: Path):
+    pasta = tmp_path / "docs"
+    (pasta / "sub").mkdir(parents=True)
+    (pasta / "sub" / "a.txt").write_text("a")
+
+    reader = SafeDocumentReader([str(pasta), str(pasta / "sub")], [])
+
+    assert len(list(reader.iter_safe_files())) == 1
+
+
+def test_extract_text_estrito_propaga_erro_e_tolerante_devolve_vazio(tmp_path: Path):
+    quebrado = tmp_path / "quebrado.pdf"
+    quebrado.write_bytes(b"isto nao e um pdf")
+    reader = SafeDocumentReader([str(tmp_path)], [])
+
+    assert reader.extract_text(quebrado) == ""
+    with pytest.raises(Exception):
+        reader.extract_text(quebrado, strict=True)

@@ -54,3 +54,27 @@ def test_it_support_query_modo_simplificar_exige_resposta_anterior_no_prompt(app
         )
 
     assert resp.status_code == 200
+
+
+def test_simplificar_manda_regras_de_linguagem_simples_e_limite_de_tamanho(monkeypatch):
+    from app.core.dependencies import get_http_client
+    from app.main import app
+
+    fake_qdrant = MagicMock()
+    fake_qdrant.get_collections.return_value = MagicMock(collections=[])
+    monkeypatch.setattr("app.services.rag_engine.QdrantClient", lambda **kwargs: fake_qdrant)
+
+    http = _fake_http_client({"response": "Passo 1: reinicie."})
+    app.dependency_overrides[get_http_client] = lambda: http
+    with TestClient(app) as client:
+        client.post(
+            "/api/v1/it-support/query",
+            json={"problem_description": "Mouse parou", "simplify": True, "previous_answer": "Limpe o cache."},
+        )
+    app.dependency_overrides.clear()
+
+    body = http.post.call_args.kwargs["json"]
+    assert "Nunca use termos técnicos" in body["prompt"]
+    assert "cache" in body["prompt"]  # a lista de termos proibidos é explícita
+    assert body["options"]["num_predict"] <= 300
+    assert body["options"]["temperature"] <= 0.3

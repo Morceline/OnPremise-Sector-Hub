@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { ListEditor } from "./ListEditor";
+import { SyncPanel } from "./SyncPanel";
 
 const SECTOR_TYPES = [
   { value: "juridico", label: "Jurídico" },
@@ -25,6 +26,15 @@ async function pickFolderNative() {
   }
 }
 
+// Só os campos do formulário; ignora o que o servidor devolve a mais (ex.: "configured").
+function pickFormFields(config) {
+  return Object.fromEntries(
+    Object.keys(EMPTY_FORM)
+      .filter((key) => config[key] !== undefined && config[key] !== null)
+      .map((key) => [key, config[key]])
+  );
+}
+
 const EMPTY_FORM = {
   sector_name: "",
   sector_type: "outro",
@@ -41,6 +51,24 @@ export function ConfigForm({ managerKey, initialConfig, onSaved, onExit }) {
   const [form, setForm] = useState({ ...EMPTY_FORM, ...initialConfig });
   const [status, setStatus] = useState(null); // { type: 'success' | 'error', message }
   const [isSaving, setIsSaving] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+
+  // Ao abrir, reaproveita a configuração já salva (pastas, links, regras, persona).
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getManagerConfig(managerKey)
+      .then((saved) => {
+        if (cancelled || !saved?.configured) return;
+        setForm((prev) => ({ ...prev, ...pickFormFields(saved) }));
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError("Não foi possível carregar a configuração salva.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [managerKey]);
 
   const update = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -98,11 +126,14 @@ export function ConfigForm({ managerKey, initialConfig, onSaved, onExit }) {
 
       <div className="admin-form__group">
         <label>Pastas permitidas</label>
-        <span className="admin-form__hint">Só o que estiver aqui dentro pode ser lido pelo assistente.</span>
+        <span className="admin-form__hint">
+          Só o que estiver aqui dentro pode ser lido pelo assistente. Use o caminho como o SERVIDOR enxerga
+          (com Docker, comece por /dados).
+        </span>
         <ListEditor
           items={form.allowed_local_paths}
           onChange={(items) => update("allowed_local_paths", items)}
-          placeholder="C:\Servidor\Manuais"
+          placeholder="/dados/Manuais"
           onPickFolder={pickFolderNative}
         />
       </div>
@@ -113,7 +144,7 @@ export function ConfigForm({ managerKey, initialConfig, onSaved, onExit }) {
         <ListEditor
           items={form.blocked_local_paths}
           onChange={(items) => update("blocked_local_paths", items)}
-          placeholder="C:\Servidor\Manuais\Diretoria"
+          placeholder="/dados/Manuais/Diretoria"
           onPickFolder={pickFolderNative}
         />
       </div>
@@ -161,6 +192,9 @@ export function ConfigForm({ managerKey, initialConfig, onSaved, onExit }) {
         )}
       </div>
 
+      <SyncPanel managerKey={managerKey} />
+
+      {loadError && <div className="form-status form-status--error">{loadError}</div>}
       {status && <div className={`form-status form-status--${status.type}`}>{status.message}</div>}
 
       <div style={{ display: "flex", gap: "8px" }}>

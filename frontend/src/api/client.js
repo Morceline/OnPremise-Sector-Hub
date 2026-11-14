@@ -42,6 +42,16 @@ export function setApiBaseUrl(value) {
   return normalized;
 }
 
+// O FastAPI devolve erro de validação como LISTA de objetos ({msg, ...}). Sem
+// converter, a tela mostrava "[object Object]". Aqui vira texto legível.
+function formatErrorDetail(detail) {
+  if (typeof detail === "string" && detail) return detail;
+  if (Array.isArray(detail) && detail.length) {
+    return detail.map((item) => item?.msg || "Dado inválido.").join(" ");
+  }
+  return "Ocorreu um erro inesperado.";
+}
+
 class ApiError extends Error {
   constructor(message, status) {
     super(message);
@@ -63,7 +73,7 @@ async function request(path, { method = "GET", body, managerKey } = {}) {
   } catch (networkError) {
     // Falha de rede real (backend fora do ar ou endereço errado) —
     // mensagem em linguagem simples, já que quem vai ler isso é um
-    // colaborador.
+    // colaborador leigo.
     throw new ApiError("Não foi possível falar com o assistente. Confira se o servidor está ligado.", 0);
   }
 
@@ -75,7 +85,7 @@ async function request(path, { method = "GET", body, managerKey } = {}) {
   }
 
   if (!response.ok) {
-    const detail = payload?.detail || "Ocorreu um erro inesperado.";
+    const detail = formatErrorDetail(payload?.detail);
     throw new ApiError(detail, response.status);
   }
 
@@ -93,6 +103,14 @@ export const api = {
   submitFeedback: (payload) => request("/api/v1/feedback/submit", { method: "POST", body: payload }),
 
   getActiveConfig: () => request("/api/v1/config/active"),
+
+  // Configuração completa, só com a chave do gestor (reabre o formulário preenchido).
+  getManagerConfig: (managerKey) => request("/api/v1/config/manager", { managerKey }),
+
+  // Sincronização das fontes (status é público; "sincronizar agora" exige a chave do gestor).
+  getSyncStatus: () => request("/api/v1/sync/status"),
+
+  runSync: (managerKey) => request("/api/v1/sync/run", { method: "POST", managerKey }),
 
   saveConfig: (config, managerKey) =>
     request("/api/v1/config/save", { method: "POST", body: config, managerKey }),

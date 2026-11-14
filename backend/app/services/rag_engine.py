@@ -4,7 +4,7 @@ services/rag_engine.py
 Motor de RAG: gera embeddings via Ollama, indexa no Qdrant e faz busca
 semântica dos top-k chunks relevantes.
 
-Mudanças:
+Mudanças em relação à versão anterior:
 1. IDs determinísticos (uuid5 a partir do hash do conteúdo do chunk + fonte)
    em vez de um contador `point_id = 1` incremental. O contador antigo
    colidia toda vez que o serviço reiniciava (voltava a contar do 1 e
@@ -19,13 +19,25 @@ Mudanças:
 3. Timeout de embedding configurável e separado do timeout de geração.
 """
 
+import asyncio
 import logging
 import uuid
-from typing import Dict, List, Optional
+from dataclasses import dataclass, field
+from typing import Awaitable, Callable, Dict, List, Optional, Sequence
 
 import httpx
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, PointStruct, VectorParams
+from qdrant_client.http.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    FilterSelector,
+    HasIdCondition,
+    MatchValue,
+    PayloadSchemaType,
+    PointStruct,
+    VectorParams,
+)
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.core.config import Settings, get_settings
@@ -34,6 +46,20 @@ logger = logging.getLogger(__name__)
 
 # Namespace fixo para gerar UUIDs determinísticos e estáveis entre execuções.
 _UUID_NAMESPACE = uuid.UUID("6b7f2c2a-8f2b-4b8a-9b8e-7e2f1a2b3c4d")
+
+# Quantos embeddings seguidos podem falhar antes de desistir do documento.
+# Evita ficar minutos esperando timeout trecho a trecho se o Ollama caiu.
+_MAX_CONSECUTIVE_EMBEDDING_FAILURES = 3
+_UPSERT_BATCH_SIZE = 32
+
+
+@dataclass
+class IndexOutcome:
+    """Resultado de indexar UM documento."""
+
+    chunk_ids: List[str] = field(default_factory=list)  # trechos gravados com sucesso
+    failed_chunks: int = 0                               # trechos sem embedding
+    total_chunks: int = 0                                # trechos gerados pelo splitter
 
 
 class RAGEngine:
@@ -63,6 +89,19 @@ class RAGEngine:
                 collection_name=self.collection_name,
                 vectors_config=VectorParams(size=self.settings.embedding_dimension, distance=Distance.COSINE),
             )
+        self._ensure_source_index()
+
+    def _ensure_source_index(self) -> None:
+        """Índice no campo 'source': deixa rápidas as buscas/remoções por arquivo."""
+        try:
+            self.client.create_payload_index(
+                collection_name=self.collection_name,
+                field_name="source",
+                field_schema=PayloadSchemaType.KEYWORD,
+            )
+        except Exception:
+            # Sem índice tudo continua funcionando (só mais lento em bases enormes).
+            logger.warning("Não foi possível criar o índice do campo 'source'.", exc_info=True)
 
     async def _get_http_client(self) -> httpx.AsyncClient:
         if self._http_client is not None:
@@ -118,6 +157,84 @@ class RAGEngine:
             self.client.upsert(collection_name=self.collection_name, points=points)
 
         return len(points)
+
+    async def index_document(
+        self,
+        source: str,
+        content: str,
+        throttle: Optional[Callable[[], Awaitable[None]]] = None,
+    ) -> IndexOutcome:
+        """
+        Indexa UM documento e devolve os IDs dos trechos gravados.
+
+        `throttle` (opcional) é chamado antes de cada embedding — a
+        sincronização usa isso para ceder a vez quando alguém está no chat.
+        Se os embeddings falharem seguidos (Ollama fora do ar), desiste cedo.
+        """
+        chunks = self.text_splitter.split_text(content)
+        outcome = IndexOutcome(total_chunks=len(chunks))
+        batch: List[PointStruct] = []
+        consecutive_failures = 0
+
+        for chunk in chunks:
+            if throttle is not None:
+                await throttle()
+
+            vector = await self._get_embedding(chunk)
+            if not vector:
+                outcome.failed_chunks += 1
+                consecutive_failures += 1
+                if consecutive_failures >= _MAX_CONSECUTIVE_EMBEDDING_FAILURES:
+                    # conta o restante como não indexado
+                    outcome.failed_chunks = outcome.total_chunks - len(set(outcome.chunk_ids))
+                    break
+                continue
+
+            consecutive_failures = 0
+            point_id = self._make_point_id(source, chunk)
+            outcome.chunk_ids.append(point_id)
+            batch.append(PointStruct(id=point_id, vector=vector, payload={"source": source, "text": chunk}))
+
+            if len(batch) >= _UPSERT_BATCH_SIZE:
+                await asyncio.to_thread(self.client.upsert, collection_name=self.collection_name, points=batch)
+                batch = []
+
+        if batch:
+            await asyncio.to_thread(self.client.upsert, collection_name=self.collection_name, points=batch)
+
+        outcome.chunk_ids = list(dict.fromkeys(outcome.chunk_ids))  # sem repetidos, mesma ordem
+        return outcome
+
+    async def prune_source(self, source: str, keep_ids: Sequence[str]) -> None:
+        """
+        Apaga os trechos de `source` que NÃO estão em `keep_ids`.
+
+        Usado depois de indexar a versão nova de um arquivo: só então os
+        trechos antigos são removidos — se algo falhar no meio, o arquivo
+        nunca fica sem nenhum trecho.
+        """
+        conditions = Filter(
+            must=[FieldCondition(key="source", match=MatchValue(value=source))],
+            must_not=[HasIdCondition(has_id=list(keep_ids))] if keep_ids else None,
+        )
+        await asyncio.to_thread(
+            self.client.delete,
+            collection_name=self.collection_name,
+            points_selector=FilterSelector(filter=conditions),
+        )
+
+    async def delete_source(self, source: str) -> None:
+        """Remove TODOS os trechos de uma fonte (arquivo apagado, bloqueado ou removido)."""
+        await self.prune_source(source, [])
+
+    async def count_source(self, source: str) -> int:
+        result = await asyncio.to_thread(
+            self.client.count,
+            collection_name=self.collection_name,
+            count_filter=Filter(must=[FieldCondition(key="source", match=MatchValue(value=source))]),
+            exact=True,
+        )
+        return result.count
 
     async def search(self, query_text: str, limit: int = 3):
         """Busca os `limit` chunks mais relevantes no Qdrant para a query."""

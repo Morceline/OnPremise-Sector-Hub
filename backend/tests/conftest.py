@@ -12,6 +12,7 @@ rápida e determinística.
 
 import hashlib
 import os
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,10 @@ import pytest
 # que leia `get_settings()`, então setamos aqui no topo do conftest.
 os.environ.setdefault("MANAGER_KEY_HASH", hashlib.sha256(b"chave-de-teste").hexdigest())
 os.environ.setdefault("FEEDBACK_ENABLED", "false")
+# A sincronização periódica NÃO roda nos testes (eles chamam o serviço direto),
+# e o catálogo SQLite vai para uma pasta temporária — nunca para o repositório.
+os.environ.setdefault("SYNC_ENABLED", "false")
+os.environ.setdefault("CATALOG_DB_PATH", os.path.join(tempfile.mkdtemp(prefix="catalogo_teste_"), "catalog.db"))
 
 
 @pytest.fixture

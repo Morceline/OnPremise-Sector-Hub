@@ -22,10 +22,15 @@ qdrant_data/
 ollama_data/
 *.log
 
+# Pasta local de documentos de teste (montada no Docker)
+/documentos/
+
 # Dados de runtime
 backend/app/data/*.json
 backend/app/data/*.jsonl
 !backend/app/data/.gitkeep
+backend/app/data/*.db
+backend/app/data/*.db-journal
 
 # Node / frontend (Tauri + React)
 node_modules/

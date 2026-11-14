@@ -4,13 +4,14 @@ import { api } from "../api/client";
 /**
  * useItSupport
  * --------------
- * Fluxo separado do chat do setor: mantém a última pergunta/resposta para
- * viabilizar o botão "não entendi, explique mais simples" (RF pedido pelo
- * usuário), que reenvia com `simplify: true` + a resposta anterior.
+ * Fluxo do suporte de TI. Guarda a pergunta original e a última resposta, para
+ * o botão "Explique mais simples" reenviar a PERGUNTA (nunca vazia) junto com a
+ * resposta anterior. Antes ele mandava texto vazio e o servidor recusava.
  */
 export function useItSupport() {
   const [messages, setMessages] = useState([]);
   const [isSending, setIsSending] = useState(false);
+  const [lastQuestion, setLastQuestion] = useState(null);
   const [lastAnswer, setLastAnswer] = useState(null);
 
   const ask = useCallback(async ({ problem_description, category }) => {
@@ -21,25 +22,23 @@ export function useItSupport() {
 
     try {
       const result = await api.queryItSupport({ problem_description, category });
+      setLastQuestion(problem_description);
       setLastAnswer(result.response);
       setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "ai", text: result.response }]);
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), role: "ai", text: error.message, isError: true },
-      ]);
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "ai", text: error.message, isError: true }]);
     } finally {
       setIsSending(false);
     }
   }, [isSending]);
 
   const simplify = useCallback(async () => {
-    if (!lastAnswer || isSending) return;
+    if (!lastAnswer || !lastQuestion || isSending) return;
 
     setIsSending(true);
     try {
       const result = await api.queryItSupport({
-        problem_description: "",
+        problem_description: lastQuestion,
         simplify: true,
         previous_answer: lastAnswer,
       });
@@ -49,14 +48,11 @@ export function useItSupport() {
         { id: crypto.randomUUID(), role: "ai", text: result.response, isSimplified: true },
       ]);
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), role: "ai", text: error.message, isError: true },
-      ]);
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "ai", text: error.message, isError: true }]);
     } finally {
       setIsSending(false);
     }
-  }, [lastAnswer, isSending]);
+  }, [lastAnswer, lastQuestion, isSending]);
 
-  return { messages, isSending, ask, simplify, canSimplify: Boolean(lastAnswer) };
+  return { messages, isSending, ask, simplify, canSimplify: Boolean(lastAnswer && lastQuestion) };
 }
