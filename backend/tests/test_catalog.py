@@ -101,3 +101,11 @@ def test_dados_sobrevivem_a_reabrir_o_banco(tmp_path):
     Catalog(path).upsert(_item("relatório_ação.txt", name="relatório_ação.txt"))
 
     assert Catalog(path).get("relatório_ação.txt") is not None
+
+
+def test_delete_meta_remove_a_chave(tmp_path):
+    catalog = Catalog(str(tmp_path / "c.db"))
+    catalog.set_meta("k", "1")
+    catalog.delete_meta("k")
+
+    assert catalog.get_meta("k") is None

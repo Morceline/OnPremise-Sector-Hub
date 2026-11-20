@@ -124,6 +124,10 @@ class SyncService:
             self.running = True
             report = SyncReport(started_at=utcnow_iso())
             self.catalog.set_meta("last_sync_started", report.started_at)
+            if self.catalog.get_meta("vocabulary") is None:
+                # Instalações antigas: o conteúdo já estava indexado antes do vocabulário existir.
+                words = await asyncio.to_thread(self.rag.collect_vocabulary)
+                self.catalog.set_meta("vocabulary", json.dumps(sorted(words), ensure_ascii=False))
             try:
                 current: Set[str] = set()
                 unavailable_roots = await self._sync_files(config, report, current)
@@ -361,11 +365,21 @@ class SyncService:
             raise EmbeddingUnavailable("Não foi possível gerar embeddings. Verifique se o Ollama está em execução.")
 
         await self.rag.prune_source(base.source, outcome.chunk_ids)
+        self._add_vocabulary(outcome.words)
         self.catalog.upsert(base.with_changes(
             content_hash=content_hash, chunk_count=len(outcome.chunk_ids),
             indexed_at=now, last_checked_at=now, status="ok", error="",
         ))
         report.indexed += 1
+
+    def _add_vocabulary(self, words) -> None:
+        """Acumula no catálogo as palavras dos documentos (usadas para corrigir digitação)."""
+        if not words:
+            return
+        current = set(self.catalog.get_meta_json("vocabulary") or [])
+        if words <= current:
+            return
+        self.catalog.set_meta("vocabulary", json.dumps(sorted(current | set(words)), ensure_ascii=False))
 
     def _save_error(
         self,

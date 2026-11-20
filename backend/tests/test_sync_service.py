@@ -455,3 +455,24 @@ async def test_laco_periodico_sem_configuracao_nao_faz_nada(service):
     with pytest.raises(asyncio.CancelledError):
         await tarefa
     assert service.catalog.get_meta("last_sync_started") is None
+
+
+async def test_vocabulario_dos_documentos_fica_no_catalogo(service, docs):
+    (docs / "a.txt").write_text("O reembolso de despesas segue o prazo definido.", encoding="utf-8")
+
+    await service.run(cfg([docs]))
+
+    vocab = service.catalog.get_meta_json("vocabulary")
+    assert {"reembolso", "despesas", "prazo"} <= set(vocab)
+
+
+async def test_vocabulario_e_reconstruido_para_conteudo_ja_indexado(service, docs):
+    """Instalação antiga: o documento já estava indexado sem vocabulário. Ao sincronizar, o vocabulário aparece."""
+    (docs / "a.txt").write_text("O reembolso de despesas segue o prazo definido.", encoding="utf-8")
+    await service.run(cfg([docs]))
+    service.catalog.delete_meta("vocabulary")  # simula instalação anterior
+
+    report = await service.run(cfg([docs]))  # arquivo não mudou: não é reindexado
+
+    assert report.unchanged == 1
+    assert {"reembolso", "despesas", "prazo"} <= set(service.catalog.get_meta_json("vocabulary"))

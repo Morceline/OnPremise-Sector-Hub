@@ -15,6 +15,7 @@ from fastapi import Request
 from httpx import AsyncClient
 
 from app.core.activity import ActivityGate
+from app.services.catalog import Catalog
 from app.services.rag_engine import RAGEngine
 from app.services.sync_service import SyncService
 
@@ -33,3 +34,7 @@ def get_activity_gate(request: Request) -> ActivityGate:
 
 def get_sync_service(request: Request) -> SyncService:
     return request.app.state.sync_service
+
+
+def get_catalog(request: Request) -> Catalog:
+    return request.app.state.catalog

@@ -60,6 +60,7 @@ class IndexOutcome:
     chunk_ids: List[str] = field(default_factory=list)  # trechos gravados com sucesso
     failed_chunks: int = 0                               # trechos sem embedding
     total_chunks: int = 0                                # trechos gerados pelo splitter
+    words: set = field(default_factory=set)              # vocabulário dos trechos (para correção de digitação)
 
 
 class RAGEngine:
@@ -203,6 +204,9 @@ class RAGEngine:
             await asyncio.to_thread(self.client.upsert, collection_name=self.collection_name, points=batch)
 
         outcome.chunk_ids = list(dict.fromkeys(outcome.chunk_ids))  # sem repetidos, mesma ordem
+        from app.services.query_normalizer import words_of
+        for chunk in chunks:
+            outcome.words |= words_of(chunk)
         return outcome
 
     async def prune_source(self, source: str, keep_ids: Sequence[str]) -> None:
@@ -235,6 +239,25 @@ class RAGEngine:
             exact=True,
         )
         return result.count
+
+    def collect_vocabulary(self) -> set:
+        """Palavras de TODOS os trechos já indexados (usado quando o vocabulário ainda não existe)."""
+        from app.services.query_normalizer import words_of
+
+        words: set = set()
+        offset = None
+        while True:
+            points, offset = self.client.scroll(
+                collection_name=self.collection_name,
+                limit=256,
+                offset=offset,
+                with_payload=["text"],
+                with_vectors=False,
+            )
+            for point in points:
+                words |= words_of(point.payload.get("text", ""))
+            if offset is None:
+                return words
 
     async def search(self, query_text: str, limit: int = 3):
         """Busca os `limit` chunks mais relevantes no Qdrant para a query."""
