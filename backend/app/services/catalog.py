@@ -138,6 +138,10 @@ class Catalog:
                 (key, value),
             )
 
+    def delete_meta(self, key: str) -> None:
+        with closing(self._connect()) as conn, conn:
+            conn.execute("DELETE FROM meta WHERE key = ?", (key,))
+
     def get_meta(self, key: str) -> Optional[str]:
         with closing(self._connect()) as conn:
             row = conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()

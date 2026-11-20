@@ -116,7 +116,7 @@ def test_chat_query_ollama_indisponivel_retorna_503(app_with_fake_qdrant, tmp_ac
     )
 
     with TestClient(app) as client:
-        resp = client.post("/api/v1/chat/query", json={"message": "oi"})
+        resp = client.post("/api/v1/chat/query", json={"message": "Qual o prazo de reembolso?"})
 
     app.dependency_overrides.clear()
 
@@ -151,3 +151,40 @@ def test_prompt_leva_as_regras_do_gestor_e_manda_responder_direto(app_with_fake_
     prompt = http.post.call_args.kwargs["json"]["prompt"]
     assert "Reembolso: 5 dias úteis." in prompt
     assert "responda diretamente" in prompt.lower()
+
+
+def test_cumprimento_responde_com_o_setor_sem_chamar_o_modelo(app_with_fake_qdrant, tmp_active_config_path):
+    from app.core.dependencies import get_http_client, get_rag_engine
+    from app.models.config import SectorConfig
+    from app.services.persistence import save_active_config
+
+    save_active_config(SectorConfig(sector_name="Jurídico", niche_persona="formal"), tmp_active_config_path)
+    http = _fake_http_client({"response": "não deveria ser usado"})
+    app = app_with_fake_qdrant
+    app.dependency_overrides[get_rag_engine] = lambda: FakeRAGEngine(hits=[])
+    app.dependency_overrides[get_http_client] = lambda: http
+
+    with TestClient(app) as client:
+        resp = client.post("/api/v1/chat/query", json={"message": "oi"})
+    app.dependency_overrides.clear()
+
+    assert resp.status_code == 200
+    assert "Olá" in resp.json()["response"] and "Jurídico" in resp.json()["response"]
+    http.post.assert_not_called()
+
+
+def test_abreviacao_e_corrigida_antes_de_entender_a_conversa(app_with_fake_qdrant, tmp_active_config_path):
+    from app.core.dependencies import get_http_client, get_rag_engine
+
+    http = _fake_http_client({"response": "não deveria ser usado"})
+    app = app_with_fake_qdrant
+    app.dependency_overrides[get_rag_engine] = lambda: FakeRAGEngine(hits=[])
+    app.dependency_overrides[get_http_client] = lambda: http
+
+    with TestClient(app) as client:
+        resp = client.post("/api/v1/chat/query", json={"message": "vc tudo bem?"})
+    app.dependency_overrides.clear()
+
+    assert resp.status_code == 200
+    assert "Estou bem" in resp.json()["response"]
+    http.post.assert_not_called()
