@@ -3,26 +3,42 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QuickCategories } from "../../components/QuickCategories";
 
-describe("QuickCategories", () => {
-  it("abre o fluxo de TI ao clicar em 'Dúvidas de TI', sem chamar onSelectPrompt", async () => {
-    const onSelectPrompt = vi.fn();
-    const onOpenItSupport = vi.fn();
-    const user = userEvent.setup();
+const handlers = () => ({
+  onSelectPrompt: vi.fn(),
+  onOpenItSupport: vi.fn(),
+  onFocusInput: vi.fn(),
+});
 
-    render(<QuickCategories onSelectPrompt={onSelectPrompt} onOpenItSupport={onOpenItSupport} />);
+describe("QuickCategories", () => {
+  it("abre o fluxo de TI ao clicar em Dúvidas de TI, sem preencher pergunta", async () => {
+    const h = handlers();
+    const user = userEvent.setup();
+    render(<QuickCategories {...h} />);
+
     await user.click(screen.getByText("Dúvidas de TI"));
 
-    expect(onOpenItSupport).toHaveBeenCalledTimes(1);
-    expect(onSelectPrompt).not.toHaveBeenCalled();
+    expect(h.onOpenItSupport).toHaveBeenCalledTimes(1);
+    expect(h.onSelectPrompt).not.toHaveBeenCalled();
   });
 
-  it("chama onSelectPrompt com o texto correto para 'Primeiros passos'", async () => {
-    const onSelectPrompt = vi.fn();
+  it("preenche a pergunta padrão de Primeiros passos", async () => {
+    const h = handlers();
     const user = userEvent.setup();
+    render(<QuickCategories {...h} />);
 
-    render(<QuickCategories onSelectPrompt={onSelectPrompt} onOpenItSupport={vi.fn()} />);
     await user.click(screen.getByText("Primeiros passos"));
 
-    expect(onSelectPrompt).toHaveBeenCalledWith("Quais são os primeiros passos no meu setor?");
+    expect(h.onSelectPrompt).toHaveBeenCalledWith("Quais são os primeiros passos no meu setor?");
+  });
+
+  it("Outros posiciona o cursor no campo de digitação (não fica sem resposta)", async () => {
+    const h = handlers();
+    const user = userEvent.setup();
+    render(<QuickCategories {...h} />);
+
+    await user.click(screen.getByText("Outros"));
+
+    expect(h.onFocusInput).toHaveBeenCalledTimes(1);
+    expect(h.onSelectPrompt).not.toHaveBeenCalled();
   });
 });

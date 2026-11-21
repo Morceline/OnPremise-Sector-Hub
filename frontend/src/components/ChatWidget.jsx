@@ -43,6 +43,7 @@ export function ChatWidget() {
   const [hasUnread, setHasUnread] = useState(false);
   const pendingActionRef = useRef(null); // 'end' | 'quit' | null
   const [menuNotice, setMenuNotice] = useState(null);
+  const [focusSignal, setFocusSignal] = useState(0);
 
   const needsServerSetup = health.status === "offline";
 
@@ -175,6 +176,7 @@ export function ChatWidget() {
             <QuickCategories
               onSelectPrompt={(prompt) => prompt && chat.sendMessage(prompt)}
               onOpenItSupport={() => setView("it-support")}
+              onFocusInput={() => setFocusSignal((n) => n + 1)}
             />
           }
         />
@@ -185,7 +187,7 @@ export function ChatWidget() {
             </button>
           </div>
         )}
-        <ChatInput onSend={chat.sendMessage} disabled={chat.isSending} />
+        <ChatInput onSend={chat.sendMessage} disabled={chat.isSending} focusSignal={focusSignal} />
       </>
     );
   };
