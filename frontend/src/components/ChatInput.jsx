@@ -1,7 +1,19 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-export function ChatInput({ onSend, disabled, placeholder = "Digite sua dúvida…" }) {
+/**
+ * ChatInput
+ * -----------
+ * Campo de digitação. `focusSignal` é um número que muda sempre que o campo
+ * deve receber o cursor (ex.: ao clicar em "Outros"), sem precisar de estado
+ * compartilhado entre componentes.
+ */
+export function ChatInput({ onSend, disabled, placeholder = "Digite sua dúvida…", focusSignal = 0 }) {
   const [value, setValue] = useState("");
+  const fieldRef = useRef(null);
+
+  useEffect(() => {
+    if (focusSignal) fieldRef.current?.focus();
+  }, [focusSignal]);
 
   const handleSend = () => {
     if (!value.trim()) return;
@@ -19,6 +31,7 @@ export function ChatInput({ onSend, disabled, placeholder = "Digite sua dúvida�
   return (
     <div className="chat-input">
       <textarea
+        ref={fieldRef}
         className="chat-input__field"
         rows={1}
         value={value}
