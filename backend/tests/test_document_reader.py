@@ -125,3 +125,12 @@ def test_extract_text_estrito_propaga_erro_e_tolerante_devolve_vazio(tmp_path: P
     assert reader.extract_text(quebrado) == ""
     with pytest.raises(Exception):
         reader.extract_text(quebrado, strict=True)
+
+
+def test_arquivo_md_e_lido_como_texto(tmp_path: Path):
+    (tmp_path / "procedimento.md").write_text("# Pedido de férias\nAntecedência de 30 dias.", encoding="utf-8")
+    reader = SafeDocumentReader([str(tmp_path)], [])
+
+    arquivos = [p.name for p in reader.iter_safe_files()]
+    assert "procedimento.md" in arquivos
+    assert "Antecedência" in reader.extract_text(tmp_path / "procedimento.md")

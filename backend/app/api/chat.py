@@ -31,6 +31,7 @@ from app.services.persistence import load_active_config
 from app.services.catalog import Catalog
 from app.services.query_normalizer import correct_query
 from app.services.rag_engine import RAGEngine
+from app.services.file_search import answer_search
 from app.services.small_talk import classify, reply_for
 
 logger = logging.getLogger(__name__)
@@ -73,13 +74,16 @@ async def process_chat(
     # Enquanto há chat em andamento, a sincronização em segundo plano espera.
     vocabulary = catalog.get_meta_json("vocabulary") or []
     async with gate.chat():
-        return await _answer(payload, rag_engine, http_client, settings, vocabulary)
+        return await _answer(payload, rag_engine, http_client, settings, vocabulary, catalog)
 
 
-async def _answer(payload: ChatMessage, rag_engine: RAGEngine, http_client: AsyncClient, settings: Settings, vocabulary):
+async def _answer(payload: ChatMessage, rag_engine: RAGEngine, http_client: AsyncClient, settings: Settings, vocabulary, catalog):
     # Abreviações e erros de digitação são corrigidos antes de entender e buscar.
     question = correct_query(payload.message, vocabulary)
     # Cumprimento, agradecimento ou despedida: responde direto, sem busca nem modelo.
+    busca = answer_search(question, catalog)
+    if busca:
+        return {"response": busca, "sources": []}
     intent = classify(question)
     if intent:
         active = load_active_config(settings.active_config_path)

@@ -124,6 +124,11 @@ class SyncService:
             self.running = True
             report = SyncReport(started_at=utcnow_iso())
             self.catalog.set_meta("last_sync_started", report.started_at)
+            if self.catalog.get_meta("terms_v1") is None:
+                # Instalações antigas: os termos exatos não existiam. Força a releitura de tudo, uma vez.
+                for item in self.catalog.all_items():
+                    self.catalog.upsert(item.with_changes(size=0, content_hash=""))
+                self.catalog.set_meta("terms_v1", "1")
             if self.catalog.get_meta("vocabulary") is None:
                 # Instalações antigas: o conteúdo já estava indexado antes do vocabulário existir.
                 words = await asyncio.to_thread(self.rag.collect_vocabulary)
@@ -151,7 +156,7 @@ class SyncService:
                 self.catalog.set_meta("last_sync_error", report.message)
             else:
                 self.catalog.set_meta("last_sync_finished", report.finished_at)
-                self.catalog.set_meta("last_sync_error", "")
+                self.catalog.set_meta("last_sync_error", report.message)
             self.catalog.set_meta("last_sync_summary", json.dumps(report.to_dict()))
             return report
 
@@ -193,6 +198,10 @@ class SyncService:
             max_file_size_mb=self.settings.max_file_size_mb,
         )
         unavailable_roots = [root for root in reader.allowed_paths if not root.exists()]
+        for root in unavailable_roots:
+            # Mensagem clara: o caminho do painel precisa existir DENTRO do servidor (Docker: /dados/...).
+            report.message = (f"Pasta não encontrada no servidor: {root}. Se o servidor roda em Docker, "
+                              "o caminho deve estar dentro de /dados, e a pasta precisa estar em DOCS_ROOT.")
         paths = await asyncio.to_thread(lambda: list(reader.iter_safe_files()))
 
         # `current` completo ANTES de processar: se o ciclo for abortado no
@@ -366,6 +375,7 @@ class SyncService:
 
         await self.rag.prune_source(base.source, outcome.chunk_ids)
         self._add_vocabulary(outcome.words)
+        self.catalog.replace_terms(base.source, outcome.terms)
         self.catalog.upsert(base.with_changes(
             content_hash=content_hash, chunk_count=len(outcome.chunk_ids),
             indexed_at=now, last_checked_at=now, status="ok", error="",

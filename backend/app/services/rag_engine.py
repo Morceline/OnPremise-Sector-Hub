@@ -61,6 +61,7 @@ class IndexOutcome:
     failed_chunks: int = 0                               # trechos sem embedding
     total_chunks: int = 0                                # trechos gerados pelo splitter
     words: set = field(default_factory=set)              # vocabulário dos trechos (para correção de digitação)
+    terms: set = field(default_factory=set)              # termos exatos: CPF, e-mail, números longos
 
 
 class RAGEngine:
@@ -207,6 +208,9 @@ class RAGEngine:
         from app.services.query_normalizer import words_of
         for chunk in chunks:
             outcome.words |= words_of(chunk)
+        from app.services.terms import extract_terms
+        for chunk in chunks:
+            outcome.terms |= extract_terms(chunk)
         return outcome
 
     async def prune_source(self, source: str, keep_ids: Sequence[str]) -> None:

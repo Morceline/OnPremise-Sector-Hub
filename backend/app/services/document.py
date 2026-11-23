@@ -25,7 +25,7 @@ from pypdf import PdfReader
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt"}
+SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".md"}
 
 
 class ExtractedDocument(TypedDict):
@@ -127,7 +127,7 @@ class SafeDocumentReader:
             reader_fn = self._pdf_text
         elif suffix in (".docx", ".doc"):
             reader_fn = self._docx_text
-        elif suffix == ".txt":
+        elif suffix in (".txt", ".md"):
             reader_fn = self._txt_text
         else:
             return ""

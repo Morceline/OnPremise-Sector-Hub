@@ -67,6 +67,12 @@ CREATE TABLE IF NOT EXISTS items (
     error           TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_items_kind ON items(kind);
+CREATE TABLE IF NOT EXISTS terms (
+    source TEXT NOT NULL,
+    term   TEXT NOT NULL,
+    PRIMARY KEY (source, term)
+);
+CREATE INDEX IF NOT EXISTS idx_terms_term ON terms(term);
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -117,7 +123,29 @@ class Catalog:
                 (checked_at or utcnow_iso(), source),
             )
 
+    def replace_terms(self, source: str, terms) -> None:
+        with closing(self._connect()) as conn, conn:
+            conn.execute("DELETE FROM terms WHERE source = ?", (source,))
+            conn.executemany("INSERT INTO terms (source, term) VALUES (?, ?)", [(source, t) for t in terms])
+
+    def sources_with_term(self, term: str):
+        with closing(self._connect()) as conn:
+            rows = conn.execute("SELECT source FROM terms WHERE term = ?", (term,)).fetchall()
+        return [row["source"] for row in rows]
+
+    def all_items(self):
+        with closing(self._connect()) as conn:
+            rows = conn.execute("SELECT * FROM items").fetchall()
+        return [CatalogItem(**{c: row[c] for c in _COLUMNS}) for row in rows]
+
+    def file_items(self):
+        with closing(self._connect()) as conn:
+            rows = conn.execute("SELECT * FROM items WHERE kind = 'file' AND status = 'ok'").fetchall()
+        return [CatalogItem(**{c: row[c] for c in _COLUMNS}) for row in rows]
+
     def delete(self, source: str) -> None:
+        with closing(self._connect()) as conn, conn:
+            conn.execute("DELETE FROM terms WHERE source = ?", (source,))
         with closing(self._connect()) as conn, conn:
             conn.execute("DELETE FROM items WHERE source = ?", (source,))
 

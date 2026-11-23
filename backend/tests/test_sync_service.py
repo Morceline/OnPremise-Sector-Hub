@@ -476,3 +476,31 @@ async def test_vocabulario_e_reconstruido_para_conteudo_ja_indexado(service, doc
 
     assert report.unchanged == 1
     assert {"reembolso", "despesas", "prazo"} <= set(service.catalog.get_meta_json("vocabulary"))
+
+
+async def test_termos_exatos_do_arquivo_vao_para_o_catalogo_na_sincronizacao(service, docs):
+    (docs / "parecer.txt").write_text("Interessado CPF 529.982.247-25, processo 12345678.", encoding="utf-8")
+
+    await service.run(cfg([docs]))
+
+    assert service.catalog.sources_with_term("52998224725") == [str(docs / "parecer.txt")]
+    assert service.catalog.sources_with_term("12345678") == [str(docs / "parecer.txt")]
+
+
+async def test_termos_sao_reconstruidos_para_conteudo_antigo(service, docs):
+    """Instalação antiga: o arquivo já estava indexado sem termos exatos. A sincronização relê e grava os termos."""
+    (docs / "parecer.txt").write_text("CPF 529.982.247-25", encoding="utf-8")
+    await service.run(cfg([docs]))
+    service.catalog.replace_terms(str(docs / "parecer.txt"), set())
+    service.catalog.delete_meta("terms_v1")
+
+    await service.run(cfg([docs]))
+
+    assert service.catalog.sources_with_term("52998224725") == [str(docs / "parecer.txt")]
+
+
+async def test_pasta_inexistente_aparece_como_erro_claro_no_status(service, tmp_path):
+    await service.run(cfg([tmp_path / "pasta_que_nao_existe"]))
+
+    erro = service.status()["last_error"]
+    assert erro and "não encontrada no servidor" in erro
