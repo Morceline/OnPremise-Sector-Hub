@@ -104,6 +104,13 @@ export const api = {
 
   getActiveConfig: () => request("/api/v1/config/active"),
 
+  // Atendimento guiado de TI: uma pergunta por vez, com botões.
+  itMenu: () => request("/api/v1/it-support/menu"),
+  itStart: (flowId) => request("/api/v1/it-support/start", { method: "POST", body: { flow_id: flowId } }),
+  itStep: (nodeId, option) => request("/api/v1/it-support/step", { method: "POST", body: { node_id: nodeId, option } }),
+  itTriage: (text) => request("/api/v1/it-support/triage", { method: "POST", body: { text } }),
+  itAnswer: (nodeId, text) => request("/api/v1/it-support/answer", { method: "POST", body: { node_id: nodeId, text } }),
+
   // Configuração completa, só com a chave do gestor (reabre o formulário preenchido).
   getManagerConfig: (managerKey) => request("/api/v1/config/manager", { managerKey }),
 

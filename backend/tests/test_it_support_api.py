@@ -39,7 +39,7 @@ def test_it_support_query_basico(app_with_fake_deps):
         )
 
     assert resp.status_code == 200
-    assert "cabo USB" in resp.json()["response"]
+    assert "Teclado, mouse ou monitor" in resp.json()["response"]  # tema fixo, sem o modelo
 
 
 def test_it_support_query_modo_simplificar_exige_resposta_anterior_no_prompt(app_with_fake_deps):
