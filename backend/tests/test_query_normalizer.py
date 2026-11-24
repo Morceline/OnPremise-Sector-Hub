@@ -48,3 +48,8 @@ def test_vocabulario_vem_das_palavras_dos_documentos():
     palavras = words_of("O prazo de Reembolso de despesas é de 5 dias úteis.")
     assert {"prazo", "reembolso", "despesas", "uteis"} <= palavras
     assert "de" not in palavras
+
+
+def test_palavras_de_pergunta_nao_sao_trocadas_pela_correcao():
+    vocab = ["forma", "alterado", "documento", "maio"]
+    assert correct_query("quais documentos foram alterados em maio?", vocab) == "quais documentos foram alterados em maio?"

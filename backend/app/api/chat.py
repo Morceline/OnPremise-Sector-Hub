@@ -81,7 +81,8 @@ async def _answer(payload: ChatMessage, rag_engine: RAGEngine, http_client: Asyn
     # Abreviações e erros de digitação são corrigidos antes de entender e buscar.
     question = correct_query(payload.message, vocabulary)
     # Cumprimento, agradecimento ou despedida: responde direto, sem busca nem modelo.
-    busca = answer_search(question, catalog)
+    # A busca de arquivos recebe a pergunta ORIGINAL: a correção de digitação não deve mexer em termos de busca.
+    busca = answer_search(payload.message, catalog)
     if busca:
         return {"response": busca, "sources": []}
     intent = classify(question)

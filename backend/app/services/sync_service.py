@@ -124,11 +124,11 @@ class SyncService:
             self.running = True
             report = SyncReport(started_at=utcnow_iso())
             self.catalog.set_meta("last_sync_started", report.started_at)
-            if self.catalog.get_meta("terms_v1") is None:
-                # Instalações antigas: os termos exatos não existiam. Força a releitura de tudo, uma vez.
+            if self.catalog.get_meta("docwords_v1") is None:
+                # Instalações antigas: termos e palavras por documento não existiam. Relê tudo, uma vez.
                 for item in self.catalog.all_items():
                     self.catalog.upsert(item.with_changes(size=0, content_hash=""))
-                self.catalog.set_meta("terms_v1", "1")
+                self.catalog.set_meta("docwords_v1", "1")
             if self.catalog.get_meta("vocabulary") is None:
                 # Instalações antigas: o conteúdo já estava indexado antes do vocabulário existir.
                 words = await asyncio.to_thread(self.rag.collect_vocabulary)
@@ -376,6 +376,7 @@ class SyncService:
         await self.rag.prune_source(base.source, outcome.chunk_ids)
         self._add_vocabulary(outcome.words)
         self.catalog.replace_terms(base.source, outcome.terms)
+        self.catalog.replace_doc_words(base.source, outcome.words)
         self.catalog.upsert(base.with_changes(
             content_hash=content_hash, chunk_count=len(outcome.chunk_ids),
             indexed_at=now, last_checked_at=now, status="ok", error="",

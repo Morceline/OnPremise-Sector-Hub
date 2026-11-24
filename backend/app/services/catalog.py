@@ -67,6 +67,11 @@ CREATE TABLE IF NOT EXISTS items (
     error           TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_items_kind ON items(kind);
+CREATE TABLE IF NOT EXISTS doc_words (
+    source TEXT NOT NULL,
+    word   TEXT NOT NULL,
+    PRIMARY KEY (source, word)
+);
 CREATE TABLE IF NOT EXISTS terms (
     source TEXT NOT NULL,
     term   TEXT NOT NULL,
@@ -123,9 +128,20 @@ class Catalog:
                 (checked_at or utcnow_iso(), source),
             )
 
+    def replace_doc_words(self, source: str, words) -> None:
+        with closing(self._connect()) as conn, conn:
+            conn.execute("DELETE FROM doc_words WHERE source = ?", (source,))
+            conn.executemany("INSERT INTO doc_words (source, word) VALUES (?, ?)", [(source, w) for w in words])
+
+    def words_for(self, source: str) -> set:
+        with closing(self._connect()) as conn:
+            rows = conn.execute("SELECT word FROM doc_words WHERE source = ?", (source,)).fetchall()
+        return {row["word"] for row in rows}
+
     def replace_terms(self, source: str, terms) -> None:
         with closing(self._connect()) as conn, conn:
             conn.execute("DELETE FROM terms WHERE source = ?", (source,))
+            conn.execute("DELETE FROM doc_words WHERE source = ?", (source,))
             conn.executemany("INSERT INTO terms (source, term) VALUES (?, ?)", [(source, t) for t in terms])
 
     def sources_with_term(self, term: str):

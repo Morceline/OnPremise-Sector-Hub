@@ -23,6 +23,14 @@ ABBREVIATIONS = {
     "qts": "quantos", "fzr": "fazer", "pra": "para", "pro": "para o", "msg": "mensagem",
 }
 
+# Palavras comuns de pergunta e de busca: nunca são "corrigidas" para outra palavra.
+PROTECTED = {
+    "quais", "qual", "foram", "foi", "sobre", "alterado", "alterados", "alterada", "alteradas", "criado", "criados",
+    "feito", "feitos", "documento", "documentos", "arquivo", "arquivos", "pasta", "pastas", "onde", "esta", "estao",
+    "tem", "tinha", "faco", "fazer", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro",
+    "dezembro", "janeiro", "fevereiro", "marco", "abril", "problema", "mensagem",
+}
+
 _WORD = re.compile(r"[A-Za-zÀ-ÿ]+")
 _MIN_LEN_TO_CORRECT = 4
 _CUTOFF = 0.8
@@ -49,7 +57,7 @@ def correct_query(text: str, vocabulary: Iterable[str]) -> str:
         word = normalize(original)
         if word in ABBREVIATIONS:
             return ABBREVIATIONS[word]
-        if len(word) < _MIN_LEN_TO_CORRECT or word in vocab_set or not vocab:
+        if len(word) < _MIN_LEN_TO_CORRECT or word in vocab_set or word in PROTECTED or not vocab:
             return original
         close = difflib.get_close_matches(word, vocab, n=1, cutoff=_CUTOFF)
         return close[0] if close else original
