@@ -492,7 +492,7 @@ async def test_termos_sao_reconstruidos_para_conteudo_antigo(service, docs):
     (docs / "parecer.txt").write_text("CPF 529.982.247-25", encoding="utf-8")
     await service.run(cfg([docs]))
     service.catalog.replace_terms(str(docs / "parecer.txt"), set())
-    service.catalog.delete_meta("terms_v1")
+    service.catalog.delete_meta("docwords_v1")
 
     await service.run(cfg([docs]))
 
@@ -504,3 +504,11 @@ async def test_pasta_inexistente_aparece_como_erro_claro_no_status(service, tmp_
 
     erro = service.status()["last_error"]
     assert erro and "não encontrada no servidor" in erro
+
+
+async def test_palavras_do_documento_vao_para_o_catalogo(service, docs):
+    (docs / "relatorio.txt").write_text("Responsável: Mariana Silva. Fornecimento de maio.", encoding="utf-8")
+
+    await service.run(cfg([docs]))
+
+    assert "mariana" in service.catalog.words_for(str(docs / "relatorio.txt"))
